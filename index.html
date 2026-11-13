@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Robin's Habit Tracker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#F2F4F8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D111D" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Habits">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style id="css">
+:root{
+  /* Layout: één kolom (max 760px), tabs Dag / Week / Gewoontes, opslaan-balk onderaan. Sfeer: trainingslog / scorebord. */
+  --bg:#F2F4F8; --surface:#FFFFFF; --surface-2:#E6EAF2; --ink:#121829; --muted:#59627A; --line:#D7DDE8;
+  --accent:#2443D0; --on-accent:#FFFFFF;
+  --good:#167A43; --good-bg:#DDF3E6; --on-good:#FFFFFF;
+  --miss:#B4400E; --miss-bg:#FBE9DC; --on-miss:#FFFFFF;
+  --gold:#94600F; --gold-bg:#FAEFD6;
+  --font-display:'Barlow Condensed','Arial Narrow',sans-serif;
+  --font-body:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D111D; --surface:#161B2B; --surface-2:#1E2437; --ink:#E7EBF4; --muted:#97A0B7; --line:#2A3147;
+    --accent:#8299FF; --on-accent:#0D111D;
+    --good:#46C97E; --good-bg:#15301F; --on-good:#0A1A10;
+    --miss:#F59A5B; --miss-bg:#38220F; --on-miss:#1E1005;
+    --gold:#F2C35A; --gold-bg:#352A11;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D111D; --surface:#161B2B; --surface-2:#1E2437; --ink:#E7EBF4; --muted:#97A0B7; --line:#2A3147;
+  --accent:#8299FF; --on-accent:#0D111D;
+  --good:#46C97E; --good-bg:#15301F; --on-good:#0A1A10;
+  --miss:#F59A5B; --miss-bg:#38220F; --on-miss:#1E1005;
+  --gold:#F2C35A; --gold-bg:#352A11;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.45}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:default;opacity:.4}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:760px;margin:0 auto;padding:calc(20px + env(safe-area-inset-top)) 16px calc(48px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:16px}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap}
+h1{font-family:var(--font-display);font-weight:700;font-size:36px;letter-spacing:.02em;text-transform:uppercase;margin:0;line-height:.95;text-wrap:balance}
+h2{font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:.03em;text-transform:uppercase;margin:0;line-height:1.1}
+.sub{color:var(--muted);font-size:13px;margin-top:4px}
+.stats{display:flex;gap:8px;flex-wrap:wrap}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 12px;min-width:86px}
+.stat b{display:block;font-family:var(--font-display);font-weight:700;font-size:28px;line-height:1.05;font-variant-numeric:tabular-nums}
+.stat span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.stat.now b{color:var(--accent)}
+.stat.rec b{color:var(--gold)}
+.tabs{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:11px}
+.tabs button{flex:1;border:0;background:transparent;color:var(--muted);padding:9px 8px;border-radius:8px;font-weight:600}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.bar .mid{text-align:center;display:flex;flex-direction:column;align-items:center}
+.bar .mid b{font-family:var(--font-display);font-size:24px;letter-spacing:.02em;text-transform:uppercase;line-height:1.05}
+.bar .mid span{font-size:13px;color:var(--muted)}
+.iconbtn{width:42px;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:22px;line-height:1;display:grid;place-items:center}
+.linkbtn{border:0;background:none;color:var(--accent);font-weight:600;padding:2px 4px;font-size:13px}
+.notice{background:var(--gold-bg);color:var(--gold);border-radius:10px;padding:10px 14px;font-weight:600;font-size:14px}
+.notice.info{background:var(--surface-2);color:var(--muted);font-weight:500}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.list{overflow:hidden}
+.row{display:grid;grid-template-columns:5px 1fr auto;gap:12px;align-items:center;padding:12px 14px 12px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.stripe{align-self:stretch;border-radius:0 3px 3px 0;background:transparent}
+.row.hit .stripe{background:var(--good)}
+.row.miss .stripe{background:var(--miss)}
+.hname{font-weight:600}
+.meta{display:flex;gap:6px 10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:2px}
+.lv{font-family:var(--font-display);font-weight:700;font-size:13px;letter-spacing:.05em;background:var(--accent);color:var(--on-accent);border-radius:5px;padding:0 6px;line-height:1.5}
+.lv.max{background:var(--gold);color:var(--surface)}
+.state{font-weight:600}
+.state.hit{color:var(--good)}
+.state.miss{color:var(--miss)}
+.ctrl{display:flex;align-items:center;gap:6px}
+.ctrl input{width:104px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);text-align:right;font-variant-numeric:tabular-nums}
+.ctrl input[type="time"]{width:116px;text-align:left}
+.ctrl .unit{font-size:13px;color:var(--muted);min-width:24px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--bg);color:var(--muted);padding:8px 14px;font-weight:600}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.yes[aria-pressed="true"]{background:var(--good);color:var(--on-good)}
+.seg button.no[aria-pressed="true"]{background:var(--miss);color:var(--on-miss)}
+.refl{padding:14px;display:flex;flex-direction:column;gap:12px}
+.refl .head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.refl label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px}
+.refl textarea{width:100%;min-height:58px;resize:vertical;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{min-width:42px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.pts{font-family:var(--font-display);font-weight:700;color:var(--accent);font-size:16px;letter-spacing:.03em}
+.scroll{overflow-x:auto}
+table.grid{border-collapse:collapse;width:100%;min-width:600px;font-size:14px}
+.grid th,.grid td{padding:9px 6px;border-top:1px solid var(--line);text-align:center;vertical-align:middle}
+.grid thead th{border-top:0;font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.grid th.h,.grid td.h{text-align:left;padding-left:14px}
+.grid td.h{font-weight:600}
+.grid td.h small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.grid .today{background:var(--surface-2)}
+.dot{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid var(--line)}
+.dot.hit{background:var(--good);border-color:var(--good)}
+.dot.miss{background:var(--miss-bg);border-color:var(--miss)}
+.dot.future{border-style:dashed;opacity:.5}
+.num{font-variant-numeric:tabular-nums;font-weight:600}
+.num.ok{color:var(--good)}
+.lvl{font-size:12px;color:var(--muted);text-align:left;min-width:120px}
+.lvl.next{color:var(--gold);font-weight:600}
+.lvl.ok{color:var(--good);font-weight:600}
+.summary{padding:14px;display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap}
+.big{font-family:var(--font-display);font-weight:700;font-size:56px;line-height:.9;color:var(--accent);font-variant-numeric:tabular-nums}
+.delta{font-size:14px;font-weight:600}
+.delta.up{color:var(--good)}
+.delta.down{color:var(--miss)}
+.chart{padding:14px 14px 10px}
+.bars{position:relative;display:flex;align-items:flex-end;gap:8px;height:150px;margin-top:10px;border-bottom:1px solid var(--line)}
+.bars .col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px}
+.bars .v{font-size:12px;font-variant-numeric:tabular-nums;color:var(--muted);font-weight:600}
+.bars .b{width:100%;max-width:46px;background:var(--surface-2);border-radius:5px 5px 0 0;min-height:2px}
+.bars .col.cur .b{background:var(--accent)}
+.bars .col.cur .v{color:var(--accent)}
+.bars .col.best .b{background:var(--gold)}
+.bars .rec{position:absolute;left:0;right:0;border-top:2px dashed var(--gold);pointer-events:none}
+.bars .rec span{position:absolute;right:0;top:-18px;font-size:11px;color:var(--gold);font-weight:700;background:var(--surface);padding:0 4px}
+.wlabels{display:flex;gap:8px;margin-top:6px}
+.wlabels span{flex:1;text-align:center;font-size:11px;color:var(--muted)}
+.hcard{padding:14px;display:flex;flex-direction:column;gap:10px}
+.hcard .head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.ladder{display:flex;gap:6px;flex-wrap:wrap}
+.ladder span{font-size:13px;padding:5px 9px;border-radius:7px;border:1px solid var(--line);color:var(--muted);font-variant-numeric:tabular-nums}
+.ladder span.done{background:var(--good-bg);border-color:transparent;color:var(--good)}
+.ladder span.cur{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
+.btns{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;font-weight:600;font-size:14px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.switch{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+.switch input{width:18px;height:18px;accent-color:var(--accent)}
+.hcard.off{opacity:.55}
+.editor{display:flex;flex-direction:column;gap:12px}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+.field input,.field select{padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-weight:400;min-width:0}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.field input,.field select{width:100%}
+.lrow{display:flex;align-items:center;gap:8px}
+.lrow .lvl-n{font-family:var(--font-display);font-weight:700;min-width:40px}
+.lrow input{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.lrow .rm{border:1px solid var(--line);background:var(--surface);border-radius:8px;width:38px;height:38px;font-size:20px;line-height:1}
+.err{color:var(--miss);font-weight:600;font-size:14px}
+.btn.danger{color:var(--miss)}
+details.hcard summary{cursor:pointer}
+details.hcard .head{padding:4px 0;border-top:1px solid var(--line)}
+.rules{padding:14px 18px}
+.rules ul{margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:6px;max-width:65ch}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;font-weight:600;display:none;max-width:calc(100% - 32px);text-align:center}
+.toast.show{display:block}
+.foot{font-size:12px;color:var(--muted);text-align:center}
+@media (max-width:480px){
+  h1{font-size:30px}
+  .row{grid-template-columns:5px 1fr;padding-right:12px}
+  .row .ctrl{grid-column:2}
+  .stat{min-width:0;flex:1}
+  .stats{width:100%}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script id="state" type="application/json">{"version":1,"created":null,"evaluatedThrough":null,"savedAt":0,"entries":{},"habits":[{"id":"slaap","name":"Slaapduur","kind":"daily","type":"number","dir":"min","unit":"u","step":0.25,"ladder":[7,7.5,8],"enabled":true,"levelHistory":[["0000-00-00",1,"start"]]},{"id":"bedtijd","name":"Bedtijd","kind":"daily","type":"time","ladder":["00:30","00:00","23:30","23:00"],"enabled":true,"levelHistory":[["0000-00-00",1,"start"]]},{"id":"snooze","name":"Niet gesnoozed","kind":"weekly","type":"bool","ladder":[4,5,6,7],"enabled":true,"levelHistory":[["0000-00-00",1,"start"]]},{"id":"water","name":"Water gedronken","kind":"daily","type":"number","dir":"min","unit":"L","step":0.25,"ladder":[1.5,2,2.5,3],"enabled":true,"levelHistory":[["0000-00-00",1,"start"]]},{"id":"alcohol","name":"Geen alcohol","kind":"weekly","type":"bool","ladder":[5,6,7],"enabled":true,"levelHistory":[["0000-00-00",1,"start"]]},{"id":"voeding","name":"Voedingsdoelen behaald","kind":"weekly","type":"bool","ladder":[4,5,6,7],"enabled":true,"levelHistory":[["0000-00-00",1,"start"]]},{"id":"sport","name":"Gesport","kind":"weekly","type":"bool","ladder":[3,4,5],"enabled":true,"levelHistory":[["0000-00-00",1,"start"]]},{"id":"stappen","name":"Aantal stappen","kind":"daily","type":"number","dir":"min","unit":"","step":500,"ladder":[6000,8000,10000,12000],"enabled":true,"levelHistory":[["0000-00-00",1,"start"]]},{"id":"scherm","name":"Schermtijd","kind":"daily","type":"number","dir":"max","unit":"u","step":0.25,"ladder":[4,3.5,3,2.5,2],"enabled":true,"levelHistory":[["0000-00-00",1,"start"]]},{"id":"skill","name":"Tijd aan skill/income","kind":"daily","type":"number","dir":"min","unit":"min","step":15,"ladder":[30,45,60,90,120],"enabled":true,"levelHistory":[["0000-00-00",1,"start"]]}]}</script>
+<script id="app">
+(function(){
+'use strict';
+var LS_KEY = 'robin-habit-tracker-v1';
+var DAYS = ['Ma','Di','Wo','Do','Vr','Za','Zo'];
+var DAYS_LONG = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
+var MONTHS = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+
+var state = JSON.parse(document.getElementById('state').textContent);
+var ui = { tab: 'dag', day: null, week: null, edit: null };
+var levelUps = [];
+
+/* ---------- datum ---------- */
+function pad(n){ return String(n).padStart(2,'0'); }
+function keyOf(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+function parseKey(k){ var p = k.split('-').map(Number); return new Date(p[0], p[1]-1, p[2]); }
+function addDays(k, n){ var d = parseKey(k); d.setDate(d.getDate()+n); return keyOf(d); }
+function wd(k){ return (parseKey(k).getDay()+6) % 7; }
+function mondayOf(k){ return addDays(k, -wd(k)); }
+function todayKey(){ return keyOf(new Date()); }
+function weekDays(wk){ var a=[]; for(var i=0;i<7;i++) a.push(addDays(wk,i)); return a; }
+function isoWeek(k){
+  var d = parseKey(k); d.setDate(d.getDate() + 3 - wd(k));
+  var w1 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d - w1) / 864e5 - 3 + ((w1.getDay()+6) % 7)) / 7);
+}
+function shortDate(k){ var d = parseKey(k); return d.getDate() + ' ' + MONTHS[d.getMonth()]; }
+
+/* ---------- helpers ---------- */
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function nl(n){ return Number(n).toLocaleString('nl-NL'); }
+function habitById(id){ for(var i=0;i<state.habits.length;i++) if(state.habits[i].id===id) return state.habits[i]; return null; }
+/* Per week bijhouden of een gewoonte meetelt en welke doelen golden, zodat aanpassingen
+   de scores van eerdere weken nooit veranderen. Zonder 'activity'/'ladderHistory' (oude data) geldt h.enabled / h.ladder. */
+function activeIn(h, wk){
+  if(!h.activity) return !!h.enabled;
+  var on = false;
+  for(var i=0;i<h.activity.length;i++){ if(h.activity[i][0] <= wk) on = h.activity[i][1]; }
+  return on;
+}
+function activeAt(wk){ return state.habits.filter(function(h){ return activeIn(h, wk); }); }
+function ladderAt(h, wk){
+  if(!h.ladderHistory) return h.ladder;
+  var lad = h.ladderHistory[0][1];
+  for(var i=0;i<h.ladderHistory.length;i++){ if(h.ladderHistory[i][0] <= wk) lad = h.ladderHistory[i][1]; }
+  return lad;
+}
+function setActive(h, wk, on){
+  if(!h.activity) h.activity = [['0000-00-00', !!h.enabled]];
+  h.activity = h.activity.filter(function(e){ return e[0] < wk; });
+  h.activity.push([wk, !!on]);
+  h.enabled = activeIn(h, mondayOf(todayKey()));
+}
+function startWeek(){ return mondayOf(state.created || todayKey()); }
+
+function rawLevel(h, wk){
+  var lv = h.levelHistory[0][1];
+  for(var i=0;i<h.levelHistory.length;i++){ if(h.levelHistory[i][0] <= wk) lv = h.levelHistory[i][1]; }
+  return lv;
+}
+function levelAt(h, wk){ return Math.min(rawLevel(h, wk), ladderAt(h, wk).length-1); }
+function setLevel(h, wk, lv, how){
+  h.levelHistory = h.levelHistory.filter(function(e){ return e[0] < wk; });
+  h.levelHistory.push([wk, lv, how]);
+}
+function toMin(t){ var p = t.split(':').map(Number); var m = p[0]*60 + p[1]; return p[0] < 12 ? m + 1440 : m; }
+function getVal(k, id){ var e = state.entries[k]; return e && e.values && e.values[id] !== undefined ? e.values[id] : null; }
+function ensureEntry(k){ if(!state.entries[k]) state.entries[k] = { values: {} }; if(!state.entries[k].values) state.entries[k].values = {}; return state.entries[k]; }
+
+function hitOn(h, k){
+  var v = getVal(k, h.id);
+  if(v === null || v === '') return null;           // niet ingevuld
+  if(h.type === 'bool') return v === true;
+  var wk = mondayOf(k), t = ladderAt(h, wk)[levelAt(h, wk)];
+  if(h.type === 'time') return toMin(v) <= toMin(t);
+  return h.dir === 'min' ? v >= t : v <= t;
+}
+function need(h, lv, wk){ return h.kind === 'daily' ? 6 : ladderAt(h, wk)[lv]; }
+function weekStats(h, wk){
+  var lv = levelAt(h, wk), hits = 0;
+  weekDays(wk).forEach(function(k){ if(hitOn(h,k) === true) hits++; });
+  return { lv: lv, hits: hits, need: need(h, lv, wk), passed: hits >= need(h, lv, wk) };
+}
+function reflected(k){ var e = state.entries[k]; return !!(e && (((e.good||'').trim()) || ((e.better||'').trim()))); }
+function weekScore(wk){
+  var total = 0;
+  activeAt(wk).forEach(function(h){
+    var s = weekStats(h, wk);
+    total += s.hits * (10 + 5*s.lv);
+    if(s.passed) total += 25 + 5*s.lv;
+  });
+  weekDays(wk).forEach(function(k){ if(reflected(k)) total += 5; });
+  return total;
+}
+function record(){
+  var best = { score: 0, wk: null }, cur = mondayOf(todayKey());
+  for(var wk = startWeek(); wk < cur; wk = addDays(wk, 7)){
+    var s = weekScore(wk); if(s > best.score) best = { score: s, wk: wk };
+  }
+  return best;
+}
+function fmtVal(h, v){
+  if(h.type === 'time') return v;
+  if(h.kind === 'weekly') return v + '× p/w';
+  return nl(v) + (h.unit ? ' ' + h.unit : '');
+}
+function fmtTarget(h, lv, wk){
+  var t = (wk ? ladderAt(h, wk) : h.ladder)[lv];
+  if(h.kind === 'weekly') return t + '× per week';
+  if(h.type === 'time') return 'vóór ' + t;
+  return (h.dir === 'min' ? '≥ ' : '≤ ') + fmtVal(h, t);
+}
+
+/* ---------- levels evalueren (deterministisch, idempotent) ---------- */
+function evaluateLevels(){
+  var cur = mondayOf(todayKey()), sw = startWeek();
+  var wk = state.evaluatedThrough ? addDays(state.evaluatedThrough, 7) : sw;
+  while(wk < cur){
+    state.habits.forEach(function(h){
+      var lv = levelAt(h, wk), prev = addDays(wk, -7);
+      if(!activeIn(h, wk) || !activeIn(h, prev)) return;
+      if(lv >= ladderAt(h, wk).length-1 || prev < sw || levelAt(h, prev) !== lv) return;
+      if(weekStats(h, wk).passed && weekStats(h, prev).passed) setLevel(h, addDays(wk, 7), lv+1, 'auto');
+    });
+    state.evaluatedThrough = wk;
+    wk = addDays(wk, 7);
+  }
+  levelUps = [];
+  state.habits.forEach(function(h){
+    h.levelHistory.forEach(function(e){ if(e[0] === cur && e[2] === 'auto') levelUps.push(h.name + ' → Lv ' + (e[1]+1) + ' (' + fmtTarget(h, e[1], cur) + ')'); });
+  });
+}
+
+/* ---------- opslaan (lokaal, in deze browser) ---------- */
+function persist(){
+  try{ state.savedAt = Date.now(); localStorage.setItem(LS_KEY, JSON.stringify(state)); return true; }
+  catch(e){ return false; }
+}
+function markDirty(){
+  if(!state.created) state.created = todayKey();
+  if(!persist()) toast('Opslaan mislukt: je browser blokkeert opslag.');
+}
+
+/* ---------- gewoontes toevoegen / aanpassen / stoppen ---------- */
+function parseNumber(v){
+  if(typeof v === 'number') return v;
+  var s = String(v == null ? '' : v).trim().replace(',', '.');
+  return s === '' ? NaN : Number(s);
+}
+function slug(name){
+  var s = String(name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
+  return s || 'gewoonte';
+}
+function uniqueId(name){
+  var base = slug(name), id = base, n = 2;
+  while(habitById(id)) id = base + '-' + (n++);
+  return id;
+}
+function checkName(name){
+  var s = String(name == null ? '' : name).trim();
+  if(!s) return { error: 'Geef de gewoonte een naam.' };
+  if(s.length > 60) return { error: 'De naam is te lang (maximaal 60 tekens).' };
+  return { value: s };
+}
+function checkStep(v){
+  var n = parseNumber(v == null || v === '' ? 1 : v);
+  return isNum(n) && n > 0 ? { value: n } : { error: 'De stapgrootte moet groter dan 0 zijn.' };
+}
+/* Controleert de doelen per level (spec = gewoonte of nieuwe gewoonte met type en dir). Elk level moet moeilijker zijn dan het vorige. */
+function checkLadder(spec, raw){
+  if(!Array.isArray(raw) || !raw.length) return { error: 'Voeg minstens 1 level toe.' };
+  if(raw.length > 12) return { error: 'Maximaal 12 levels.' };
+  var out = [], i, v, p, harder;
+  for(i = 0; i < raw.length; i++){
+    v = raw[i];
+    if(spec.type === 'time'){
+      v = String(v == null ? '' : v).trim();
+      if(!TIME_RE.test(v)) return { error: 'Level ' + (i+1) + ': vul een tijd in (uu:mm).' };
+    } else {
+      v = parseNumber(v);
+      if(!isNum(v)) return { error: 'Level ' + (i+1) + ': vul een getal in.' };
+      if(spec.type === 'bool' && (Math.floor(v) !== v || v < 1 || v > 7)) return { error: 'Level ' + (i+1) + ': kies een aantal keer per week van 1 tot 7.' };
+      if(v < 0) return { error: 'Level ' + (i+1) + ': de waarde mag niet negatief zijn.' };
+    }
+    if(i > 0){
+      p = out[i-1];
+      harder = spec.type === 'time' ? toMin(v) < toMin(p) : spec.type === 'bool' ? v > p : spec.dir === 'max' ? v < p : v > p;
+      if(!harder) return { error: 'Level ' + (i+1) + ' moet moeilijker zijn dan level ' + i + '.' };
+    }
+    out.push(v);
+  }
+  return { value: out };
+}
+function ladderShapeError(type, lad){
+  if(!Array.isArray(lad) || !lad.length || lad.length > 20) return 'ongeldige levels.';
+  for(var j = 0; j < lad.length; j++){
+    var v = lad[j];
+    if(type === 'time' ? !(typeof v === 'string' && TIME_RE.test(v)) : !isNum(v)) return 'ongeldige waarde bij level ' + (j + 1) + '.';
+  }
+  return '';
+}
+
+/* spec: { name, kind, type, dir, unit, step, ladder:[..], start } ; wk = week vanaf wanneer de gewoonte meetelt */
+function addHabit(spec, wk){
+  var nm = checkName(spec.name);
+  if(nm.error) return { ok: false, error: nm.error };
+  var kind = spec.kind, type = spec.type;
+  if(!((kind === 'daily' && (type === 'number' || type === 'time')) || (kind === 'weekly' && type === 'bool'))) return { ok: false, error: 'Kies een geldig soort gewoonte.' };
+  var h = { name: nm.value, kind: kind, type: type };
+  if(type === 'number'){
+    if(spec.dir !== 'min' && spec.dir !== 'max') return { ok: false, error: 'Kies of het doel een minimum of een maximum is.' };
+    var st = checkStep(spec.step);
+    if(st.error) return { ok: false, error: st.error };
+    h.dir = spec.dir; h.unit = String(spec.unit == null ? '' : spec.unit).trim().slice(0, 10); h.step = st.value;
+  }
+  var ld = checkLadder(h, spec.ladder);
+  if(ld.error) return { ok: false, error: ld.error };
+  h.ladder = ld.value;
+  var start = spec.start == null || spec.start === '' ? 0 : parseNumber(spec.start);
+  if(!isNum(start) || Math.floor(start) !== start || start < 0 || start > h.ladder.length - 1) return { ok: false, error: 'Het startlevel moet een van je levels zijn.' };
+  h.id = uniqueId(nm.value);
+  h.enabled = true;
+  h.activity = [[wk, true]];
+  h.levelHistory = [['0000-00-00', start, 'start']];
+  state.habits.push(h);
+  return { ok: true, habit: h };
+}
+
+/* patch: { name, unit, step, ladder } ; doelen gelden vanaf week wk, eerdere weken blijven zoals ze waren. */
+function updateHabit(id, patch, wk){
+  var h = habitById(id);
+  if(!h) return { ok: false, error: 'Gewoonte niet gevonden.' };
+  var nm = checkName(patch.name);
+  if(nm.error) return { ok: false, error: nm.error };
+  var unit = h.unit, step = h.step;
+  if(h.type === 'number'){
+    unit = String(patch.unit === undefined ? h.unit : (patch.unit == null ? '' : patch.unit)).trim().slice(0, 10);
+    var st = checkStep(patch.step === undefined ? h.step : patch.step);
+    if(st.error) return { ok: false, error: st.error };
+    step = st.value;
+  }
+  var ld = checkLadder(h, patch.ladder === undefined ? ladderAt(h, wk) : patch.ladder);
+  if(ld.error) return { ok: false, error: ld.error };
+  // alles is gecontroleerd: nu pas toepassen
+  h.name = nm.value;
+  if(h.type === 'number'){ h.unit = unit; h.step = step; }
+  if(JSON.stringify(ld.value) !== JSON.stringify(h.ladder)){
+    if(!h.ladderHistory) h.ladderHistory = [['0000-00-00', h.ladder.slice()]];
+    h.ladderHistory = h.ladderHistory.filter(function(e){ return e[0] < wk; });
+    h.ladderHistory.push([wk, ld.value]);
+    h.ladder = ld.value;
+    if(rawLevel(h, wk) > ld.value.length - 1) setLevel(h, wk, ld.value.length - 1, 'manual');
+  }
+  return { ok: true, habit: h };
+}
+/* Stoppen = vanaf deze week niet meer meetellen; eerdere weken (en je record) blijven kloppen. */
+function archiveHabit(id, wk){ var h = habitById(id); if(!h) return false; setActive(h, wk, false); h.archived = true; return true; }
+function restoreHabit(id, wk){ var h = habitById(id); if(!h) return false; h.archived = false; setActive(h, wk, true); return true; }
+
+/* ---------- back-up (export / import) ---------- */
+var BACKUP_APP = 'robin-habit-tracker';
+var LS_EXPORT = 'robin-habit-tracker-lastexport';
+var LS_BEFORE_IMPORT = 'robin-habit-tracker-v1-before-import';
+var DATE_RE = /^\d{4}-\d{2}-\d{2}$/, ID_RE = /^[A-Za-z0-9_-]{1,40}$/, TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+function isObj(o){ return o !== null && typeof o === 'object' && !Array.isArray(o); }
+function isNum(n){ return typeof n === 'number' && isFinite(n); }
+
+function buildBackup(){
+  return { app: BACKUP_APP, version: 1, exportedAt: new Date().toISOString(), data: JSON.parse(JSON.stringify(state)) };
+}
+
+/* Controleert een back-up (of een kale state) en geeft een schone kopie terug, of een foutmelding. Past niets aan. */
+function validateBackup(raw){
+  function fail(m){ return { ok: false, error: m }; }
+  var src = raw;
+  if(isObj(raw) && raw.app !== undefined){
+    if(raw.app !== BACKUP_APP) return fail('Dit is geen back-up van deze app.');
+    src = raw.data;
+  }
+  if(!isObj(src)) return fail('Het bestand bevat geen geldige gegevens.');
+  if(src.version !== undefined && (!isNum(src.version) || src.version > 1)) return fail('Deze back-up komt van een nieuwere versie van de app.');
+  if(!Array.isArray(src.habits) || !src.habits.length || src.habits.length > 100) return fail('Geen (geldige) gewoontes gevonden in de back-up.');
+  var out = { version: 1, created: null, evaluatedThrough: null, savedAt: 0, entries: {}, habits: [] };
+  var byId = {}, i, j;
+  ['created', 'evaluatedThrough'].forEach(function(f){
+    if(src[f] !== null && src[f] !== undefined){ if(typeof src[f] === 'string' && DATE_RE.test(src[f])) out[f] = src[f]; else out[f] = false; }
+  });
+  if(out.created === false) return fail('Ongeldige startdatum in de back-up.');
+  if(out.evaluatedThrough === false) return fail('Ongeldige evaluatiedatum in de back-up.');
+
+  for(i = 0; i < src.habits.length; i++){
+    var h = src.habits[i], n = 'Gewoonte ' + (i + 1) + ': ';
+    if(!isObj(h)) return fail(n + 'ongeldig.');
+    if(typeof h.id !== 'string' || !ID_RE.test(h.id)) return fail(n + 'ongeldige id.');
+    if(byId[h.id]) return fail(n + 'id "' + h.id + '" komt dubbel voor.');
+    if(typeof h.name !== 'string' || !h.name.trim() || h.name.length > 80) return fail(n + 'ongeldige naam.');
+    n = '"' + h.name + '": ';
+    if(h.kind !== 'daily' && h.kind !== 'weekly') return fail(n + 'onbekend soort (daily/weekly).');
+    if(['number', 'time', 'bool'].indexOf(h.type) === -1) return fail(n + 'onbekend type.');
+    if(typeof h.enabled !== 'boolean') return fail(n + 'actief ontbreekt.');
+    var le = ladderShapeError(h.type, h.ladder);
+    if(le) return fail(n + le);
+    var c = { id: h.id, name: h.name, kind: h.kind, type: h.type, ladder: h.ladder.slice(), enabled: h.enabled };
+    if(h.archived !== undefined){
+      if(typeof h.archived !== 'boolean') return fail(n + 'ongeldige status (gestopt).');
+      c.archived = h.archived;
+    }
+    if(h.activity !== undefined){
+      if(!Array.isArray(h.activity) || !h.activity.length) return fail(n + 'ongeldige actief-geschiedenis.');
+      c.activity = [];
+      for(j = 0; j < h.activity.length; j++){
+        var a = h.activity[j];
+        if(!Array.isArray(a) || typeof a[0] !== 'string' || !DATE_RE.test(a[0]) || typeof a[1] !== 'boolean') return fail(n + 'ongeldige actief-geschiedenis.');
+        c.activity.push([a[0], a[1]]);
+      }
+    }
+    if(h.ladderHistory !== undefined){
+      if(!Array.isArray(h.ladderHistory) || !h.ladderHistory.length) return fail(n + 'ongeldige levelgeschiedenis van doelen.');
+      c.ladderHistory = [];
+      for(j = 0; j < h.ladderHistory.length; j++){
+        var lh = h.ladderHistory[j];
+        if(!Array.isArray(lh) || typeof lh[0] !== 'string' || !DATE_RE.test(lh[0])) return fail(n + 'ongeldige levelgeschiedenis van doelen.');
+        var le2 = ladderShapeError(h.type, lh[1]);
+        if(le2) return fail(n + 'eerdere levels: ' + le2);
+        c.ladderHistory.push([lh[0], lh[1].slice()]);
+      }
+    }
+    if(h.type === 'number'){
+      if(h.dir !== 'min' && h.dir !== 'max') return fail(n + 'richting (min/max) ontbreekt.');
+      if(!isNum(h.step) || h.step <= 0) return fail(n + 'ongeldige stapgrootte.');
+      c.dir = h.dir; c.step = h.step;
+      c.unit = typeof h.unit === 'string' ? h.unit.slice(0, 10) : '';
+    }
+    if(!Array.isArray(h.levelHistory) || !h.levelHistory.length) return fail(n + 'levelgeschiedenis ontbreekt.');
+    c.levelHistory = [];
+    for(j = 0; j < h.levelHistory.length; j++){
+      var e = h.levelHistory[j];
+      if(!Array.isArray(e) || typeof e[0] !== 'string' || !(DATE_RE.test(e[0])) || !isNum(e[1]) || e[1] < 0 || Math.floor(e[1]) !== e[1] || typeof e[2] !== 'string') return fail(n + 'ongeldige levelgeschiedenis.');
+      c.levelHistory.push([e[0], e[1], e[2]]);
+    }
+    byId[h.id] = c;
+    out.habits.push(c);
+  }
+
+  var ent = src.entries === undefined ? {} : src.entries;
+  if(!isObj(ent)) return fail('Ongeldige ingevulde dagen.');
+  var days = Object.keys(ent);
+  if(days.length > 20000) return fail('Te veel dagen in de back-up.');
+  for(i = 0; i < days.length; i++){
+    var k = days[i], d = ent[k], m = 'Dag ' + k + ': ';
+    if(!DATE_RE.test(k)) return fail('Ongeldige datum "' + k + '".');
+    if(!isObj(d)) return fail(m + 'ongeldig.');
+    var cd = { values: {} }, vals = d.values === undefined ? {} : d.values;
+    if(!isObj(vals)) return fail(m + 'ongeldige waarden.');
+    var vk = Object.keys(vals);
+    for(j = 0; j < vk.length; j++){
+      var id = vk[j], v = vals[id], hh = byId[id];
+      if(!ID_RE.test(id)) return fail(m + 'ongeldige gewoonte-id.');
+      if(hh){
+        var okv = hh.type === 'bool' ? typeof v === 'boolean' : hh.type === 'time' ? (typeof v === 'string' && TIME_RE.test(v)) : isNum(v);
+        if(!okv) return fail(m + 'ongeldige waarde voor "' + hh.name + '".');
+      } else if(!(isNum(v) || typeof v === 'boolean' || typeof v === 'string')) return fail(m + 'ongeldige waarde.');
+      cd.values[id] = v;
+    }
+    ['good', 'better'].forEach(function(f){
+      if(d[f] !== undefined && d[f] !== null){ if(typeof d[f] === 'string' && d[f].length <= 5000) cd[f] = d[f]; else cd[f] = false; }
+    });
+    if(cd.good === false || cd.better === false) return fail(m + 'ongeldige reflectie.');
+    if(d.energy !== undefined && d.energy !== null){
+      if(!isNum(d.energy) || d.energy < 1 || d.energy > 5 || Math.floor(d.energy) !== d.energy) return fail(m + 'ongeldige energie.');
+      cd.energy = d.energy;
+    } else if(d.energy === null) cd.energy = null;
+    out.entries[k] = cd;
+  }
+  return { ok: true, state: out };
+}
+
+/* Zet een gevalideerde state in de plaats van de huidige. De vorige state blijft als noodkopie bewaard. */
+function applyState(s){
+  try{ localStorage.setItem(LS_BEFORE_IMPORT, JSON.stringify(state)); }catch(e){}
+  state = s;
+  evaluateLevels();
+  persist();
+  ui.day = todayKey(); ui.week = mondayOf(ui.day);
+  render();
+}
+function lastBackupText(){
+  var k = null;
+  try{ k = localStorage.getItem(LS_EXPORT); }catch(e){}
+  return k && DATE_RE.test(k) ? 'Laatste back-up: ' + shortDate(k) : 'Nog geen back-up gemaakt.';
+}
+function exportData(){
+  var json = JSON.stringify(buildBackup(), null, 2);
+  var url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  var a = document.createElement('a');
+  a.href = url; a.download = 'habit-tracker-backup-' + todayKey() + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  try{ localStorage.setItem(LS_EXPORT, todayKey()); }catch(e){}
+  var el = document.getElementById('backup-last'); if(el) el.textContent = lastBackupText();
+  toast('Back-up gedownload');
+}
+function importFile(file){
+  if(file.size > 20e6){ toast('Terugzetten mislukt: bestand is te groot.'); return; }
+  file.text().then(function(txt){
+    var raw;
+    try{ raw = JSON.parse(txt); }catch(e){ toast('Terugzetten mislukt: dit is geen geldig JSON-bestand.'); return; }
+    var res = validateBackup(raw);
+    if(!res.ok){ toast('Terugzetten mislukt: ' + res.error); return; }
+    var days = Object.keys(res.state.entries).length;
+    var when = isObj(raw) && typeof raw.exportedAt === 'string' ? ' van ' + raw.exportedAt.slice(0, 10) : '';
+    if(!window.confirm('Back-up' + when + ': ' + days + (days === 1 ? ' dag' : ' dagen') + ' ingevuld, ' + res.state.habits.length + ' gewoontes.\n\nDit vervangt alle huidige gegevens op dit toestel. Doorgaan?')) return;
+    applyState(res.state);
+    toast('Back-up teruggezet');
+  }).catch(function(){ toast('Terugzetten mislukt: bestand kon niet gelezen worden.'); });
+}
+
+/* ---------- UI ---------- */
+var root = document.getElementById('root');
+var toastTimer = null;
+function toast(t){
+  var el = document.getElementById('toast'); if(!el) return;
+  el.textContent = t; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 2600);
+}
+function headerStats(){
+  var cur = mondayOf(todayKey()), now = weekScore(cur), last = weekScore(addDays(cur,-7)), rec = record();
+  return '<div class="stat now"><b id="st-now">' + now + '</b><span>Deze week</span></div>' +
+         '<div class="stat"><b>' + last + '</b><span>Vorige week</span></div>' +
+         '<div class="stat rec"><b>' + rec.score + '</b><span>Record' + (rec.wk ? ' · wk ' + isoWeek(rec.wk) : '') + '</span></div>';
+}
+function render(){
+  var tabs = [['dag','Dag'],['week','Week'],['gewoontes','Gewoontes']];
+  var body = ui.tab === 'dag' ? renderDay() : ui.tab === 'week' ? renderWeek() : renderHabits();
+  root.innerHTML =
+    '<div class="wrap">' +
+      '<header class="top"><div><h1>Habit Tracker</h1><div class="sub">Levels gaan omhoog als je 2 weken op rij je doel haalt.</div></div>' +
+      '<div class="stats" id="stats">' + headerStats() + '</div></header>' +
+      '<nav class="tabs" role="tablist">' + tabs.map(function(t){ return '<button role="tab" data-act="tab" data-v="' + t[0] + '" aria-selected="' + (ui.tab===t[0]) + '">' + t[1] + '</button>'; }).join('') + '</nav>' +
+      body +
+      '<div class="foot">Wijzigingen worden automatisch bewaard op dit toestel.</div>' +
+    '</div>' +
+    '<div class="toast" id="toast" role="status" aria-live="polite"></div>';
+}
+
+/* Dag */
+function rowState(h, k){
+  var r = hitOn(h, k);
+  return r === true ? 'hit' : r === false ? 'miss' : '';
+}
+function rowMeta(h, k){
+  var wk = mondayOf(k), lv = levelAt(h, wk), r = hitOn(h, k), out = '';
+  var max = lv >= ladderAt(h, wk).length-1;
+  out += '<span class="lv' + (max ? ' max' : '') + '">' + (max ? 'MAX' : 'LV ' + (lv+1)) + '</span>';
+  out += '<span>Doel ' + esc(fmtTarget(h, lv, wk)) + '</span>';
+  if(h.kind === 'weekly'){ var s = weekStats(h, wk); out += '<span class="state' + (s.passed ? ' hit' : '') + '">' + s.hits + '/' + s.need + ' deze week</span>'; }
+  else if(r !== null) out += '<span class="state ' + (r ? 'hit">Gehaald' : 'miss">Niet gehaald') + '</span>';
+  return out;
+}
+function rowCtrl(h, k){
+  var v = getVal(k, h.id);
+  if(h.type === 'bool'){
+    return '<div class="seg" role="group" aria-label="' + esc(h.name) + '">' +
+      '<button class="yes" data-act="bool" data-hid="' + h.id + '" data-v="1" aria-pressed="' + (v===true) + '">Ja</button>' +
+      '<button class="no" data-act="bool" data-hid="' + h.id + '" data-v="0" aria-pressed="' + (v===false) + '">Nee</button></div>';
+  }
+  if(h.type === 'time'){
+    return '<input type="time" id="in-' + h.id + '" data-hid="' + h.id + '" value="' + esc(v || '') + '" aria-label="' + esc(h.name) + '">';
+  }
+  return '<input type="number" id="in-' + h.id + '" data-hid="' + h.id + '" inputmode="decimal" min="0" step="' + h.step + '" value="' + (v === null ? '' : v) + '" aria-label="' + esc(h.name) + '" placeholder="–">' +
+         '<span class="unit">' + esc(h.unit) + '</span>';
+}
+function renderDay(){
+  var k = ui.day, d = parseKey(k), isToday = k === todayKey(), e = state.entries[k] || {};
+  var html = '<div class="bar"><button class="iconbtn" data-act="day" data-v="-1" aria-label="Vorige dag">‹</button>' +
+    '<div class="mid"><b>' + (isToday ? 'Vandaag' : DAYS_LONG[wd(k)]) + '</b><span>' + (isToday ? DAYS_LONG[wd(k)] + ' ' : '') + shortDate(k) + ' · week ' + isoWeek(k) +
+    (isToday ? '' : ' · <button class="linkbtn" data-act="today">Naar vandaag</button>') + '</span></div>' +
+    '<button class="iconbtn" data-act="day" data-v="1" aria-label="Volgende dag"' + (isToday ? ' disabled' : '') + '>›</button></div>';
+  if(levelUps.length && mondayOf(k) === mondayOf(todayKey())) html += '<div class="notice">Level up deze week: ' + levelUps.map(esc).join(' · ') + '</div>';
+  html += '<div class="card list">' + activeAt(mondayOf(k)).map(function(h){
+    return '<div class="row ' + rowState(h,k) + '" id="row-' + h.id + '"><div class="stripe"></div>' +
+      '<div><div class="hname">' + esc(h.name) + '</div><div class="meta" id="meta-' + h.id + '">' + rowMeta(h,k) + '</div></div>' +
+      '<div class="ctrl">' + rowCtrl(h,k) + '</div></div>';
+  }).join('') + '</div>';
+  html += '<div class="card refl"><div class="head"><h2>Dagreflectie</h2><span class="pts" id="refl-pts">' + (reflected(k) ? '+5 punten' : '+5 als je iets invult') + '</span></div>' +
+    '<div><label id="lab-energy">Energie vandaag</label><div class="chips" role="group" aria-labelledby="lab-energy">' +
+    [1,2,3,4,5].map(function(n){ return '<button data-act="energy" data-v="' + n + '" aria-pressed="' + (e.energy===n) + '">' + n + '</button>'; }).join('') + '</div></div>' +
+    '<div><label for="f-good">Wat ging goed?</label><textarea id="f-good" data-field="good">' + esc(e.good || '') + '</textarea></div>' +
+    '<div><label for="f-better">Wat doe je morgen beter?</label><textarea id="f-better" data-field="better">' + esc(e.better || '') + '</textarea></div></div>';
+  return html;
+}
+function refreshDayStatus(){
+  var k = ui.day;
+  activeAt(mondayOf(k)).forEach(function(h){
+    var row = document.getElementById('row-' + h.id), meta = document.getElementById('meta-' + h.id);
+    if(row){ row.classList.remove('hit','miss'); var s = rowState(h,k); if(s) row.classList.add(s); }
+    if(meta) meta.innerHTML = rowMeta(h,k);
+  });
+  var p = document.getElementById('refl-pts'); if(p) p.textContent = reflected(k) ? '+5 punten' : '+5 als je iets invult';
+  var st = document.getElementById('stats'); if(st) st.innerHTML = headerStats();
+}
+
+/* Week */
+function renderWeek(){
+  var wk = ui.week, cur = mondayOf(todayKey()), tk = todayKey(), days = weekDays(wk), sw = startWeek();
+  var score = weekScore(wk), prevScore = weekScore(addDays(wk,-7)), rec = record(), diff = score - prevScore;
+  var html = '<div class="bar"><button class="iconbtn" data-act="week" data-v="-1" aria-label="Vorige week">‹</button>' +
+    '<div class="mid"><b>Week ' + isoWeek(wk) + '</b><span>' + shortDate(wk) + ' – ' + shortDate(addDays(wk,6)) + (wk === cur ? ' · huidige week' : '') + '</span></div>' +
+    '<button class="iconbtn" data-act="week" data-v="1" aria-label="Volgende week"' + (wk >= cur ? ' disabled' : '') + '>›</button></div>';
+  var toRec = rec.score - score;
+  html += '<div class="card summary"><div><div class="big">' + score + '</div><div class="sub">punten deze week</div></div>' +
+    '<div><div class="delta ' + (diff >= 0 ? 'up' : 'down') + '">' + (diff >= 0 ? '+' : '') + diff + ' t.o.v. week ervoor</div>' +
+    '<div class="sub">' + (wk === cur ? (rec.wk === null ? 'Eerste week: deze score wordt je eerste record.' : toRec > 0 ? 'Nog ' + toRec + ' punten tot je record (' + rec.score + ').' : 'Je zit boven je record. Houd vol tot zondag.') : (rec.wk === wk ? 'Dit is je recordweek.' : 'Record: ' + rec.score)) + '</div></div></div>';
+  html += '<div class="card scroll"><table class="grid"><thead><tr><th class="h">Gewoonte</th>' +
+    days.map(function(k, i){ return '<th' + (k === tk ? ' class="today"' : '') + '>' + DAYS[i] + '</th>'; }).join('') + '<th>Totaal</th><th class="h">Level-up</th></tr></thead><tbody>';
+  activeAt(wk).forEach(function(h){
+    var s = weekStats(h, wk), max = s.lv >= ladderAt(h, wk).length-1, prev = addDays(wk,-7);
+    var prevOk = prev >= sw && levelAt(h, prev) === s.lv && weekStats(h, prev).passed;
+    var lvl, cls = '';
+    if(max){ lvl = 'Max level bereikt'; cls = 'ok'; }
+    else if(wk < cur){ lvl = s.passed ? (prevOk ? 'Gehaald → level up' : 'Gehaald (1 van 2)') : 'Niet gehaald'; cls = s.passed ? 'ok' : ''; }
+    else if(prevOk){ lvl = 'Haal deze week → LV ' + (s.lv+2); cls = 'next'; }
+    else lvl = '2 weken op rij → LV ' + (s.lv+2);
+    html += '<tr><td class="h">' + esc(h.name) + '<small>LV ' + (s.lv+1) + ' · ' + esc(fmtTarget(h, s.lv, wk)) + '</small></td>' +
+      days.map(function(k){
+        var r = hitOn(h, k), c = k > tk ? 'future' : r === true ? 'hit' : r === false ? 'miss' : '';
+        var lab = k > tk ? 'nog niet' : r === true ? 'gehaald' : r === false ? 'niet gehaald' : 'niet ingevuld';
+        return '<td' + (k === tk ? ' class="today"' : '') + '><span class="dot ' + c + '" title="' + lab + '" aria-label="' + DAYS_LONG[wd(k)] + ': ' + lab + '"></span></td>';
+      }).join('') +
+      '<td class="num' + (s.passed ? ' ok' : '') + '">' + s.hits + '/' + s.need + '</td><td class="lvl ' + cls + '">' + lvl + '</td></tr>';
+  });
+  html += '<tr><td class="h">Dagreflectie<small>+5 per dag</small></td>' + days.map(function(k){
+    var c = k > tk ? 'future' : reflected(k) ? 'hit' : '';
+    return '<td' + (k === tk ? ' class="today"' : '') + '><span class="dot ' + c + '"></span></td>';
+  }).join('') + '<td class="num">' + days.filter(reflected).length + '/7</td><td class="lvl"></td></tr>';
+  html += '</tbody></table></div>';
+  // grafiek laatste 8 weken
+  var weeks = []; for(var i=7;i>=0;i--) weeks.push(addDays(cur, -7*i));
+  var scores = weeks.map(weekScore), top = Math.max.apply(null, scores.concat([rec.score, 100]));
+  html += '<div class="card chart"><h2>Weekscore, laatste 8 weken</h2><div class="bars">' +
+    (rec.score > 0 ? '<div class="rec" style="bottom:' + (rec.score/top*100).toFixed(1) + '%"><span>Record ' + rec.score + '</span></div>' : '') +
+    weeks.map(function(w, i){
+      var cls = w === cur ? 'cur' : (rec.wk === w ? 'best' : '');
+      var h = Math.max(1, scores[i]/top*100);
+      return '<div class="col ' + cls + '"><span class="v">' + scores[i] + '</span><div class="b" style="height:calc(' + h.toFixed(1) + '% - 22px)"></div></div>';
+    }).join('') + '</div><div class="wlabels">' + weeks.map(function(w){ return '<span>wk ' + isoWeek(w) + '</span>'; }).join('') + '</div></div>';
+  return html;
+}
+
+/* Gewoontes */
+function newDraft(){ return { mode: 'add', id: null, name: '', sel: 'num', dir: 'min', unit: '', step: '1', ladder: ['', ''], start: '1', error: '' }; }
+function draftFromHabit(h){
+  var cur = mondayOf(todayKey());
+  return { mode: 'edit', id: h.id, name: h.name, unit: h.unit || '', step: h.step == null ? '' : String(h.step).replace('.', ','),
+    ladder: ladderAt(h, cur).map(function(v){ return String(v).replace('.', ','); }), error: '' };
+}
+function renderEditor(d){
+  var h = d.mode === 'edit' ? habitById(d.id) : null;
+  var type = h ? h.type : d.sel === 'time' ? 'time' : d.sel === 'week' ? 'bool' : 'number';
+  var dir = h ? h.dir : d.dir;
+  var hint = type === 'time' ? 'Elk level is een eerdere tijd dan het vorige (vóór dit uur).' :
+    type === 'bool' ? 'Aantal keer per week (1 tot 7). Elk level vraagt vaker dan het vorige.' :
+    dir === 'max' ? 'Elk level is een lagere waarde dan het vorige (hoogstens).' : 'Elk level is een hogere waarde dan het vorige (minstens).';
+  var html = '<div class="editor">' +
+    '<label class="field">Naam<input type="text" data-draft="name" maxlength="60" value="' + esc(d.name) + '" placeholder="Bijv. Lezen"></label>';
+  if(!h){
+    html += '<label class="field">Soort<select data-draft="sel">' +
+      [['num', 'Dagelijks – getal (bijv. minuten, liters)'], ['time', 'Dagelijks – tijdstip (bijv. bedtijd)'], ['week', 'Per week – ja/nee (aantal keer)']].map(function(o){
+        return '<option value="' + o[0] + '"' + (d.sel === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>';
+    if(type === 'number') html += '<label class="field">Doel<select data-draft="dir"><option value="min"' + (d.dir === 'min' ? ' selected' : '') + '>Minstens (hoger is beter)</option><option value="max"' + (d.dir === 'max' ? ' selected' : '') + '>Hoogstens (lager is beter)</option></select></label>';
+  }
+  if(type === 'number'){
+    html += '<div class="two"><label class="field">Eenheid<input type="text" data-draft="unit" maxlength="10" value="' + esc(d.unit) + '" placeholder="min, L, u"></label>' +
+      '<label class="field">Stap bij invullen<input type="text" inputmode="decimal" data-draft="step" value="' + esc(d.step) + '"></label></div>';
+  }
+  html += '<div class="field">Doel per level<div class="sub" style="margin:0">' + hint + '</div></div>';
+  html += d.ladder.map(function(v, i){
+    var inp = type === 'time' ? '<input type="time" data-draft="ladder" data-i="' + i + '" value="' + esc(v) + '" aria-label="Level ' + (i+1) + '">' :
+      '<input type="text" inputmode="' + (type === 'bool' ? 'numeric' : 'decimal') + '" data-draft="ladder" data-i="' + i + '" value="' + esc(v) + '" aria-label="Level ' + (i+1) + '" placeholder="' + (type === 'bool' ? 'keer per week' : 'waarde') + '">';
+    return '<div class="lrow"><span class="lvl-n">LV ' + (i+1) + '</span>' + inp +
+      '<button class="rm" data-act="lvl-del" data-i="' + i + '" aria-label="Level ' + (i+1) + ' verwijderen"' + (d.ladder.length <= 1 ? ' disabled' : '') + '>×</button></div>';
+  }).join('');
+  html += '<div class="btns"><button class="btn" data-act="lvl-add"' + (d.ladder.length >= 12 ? ' disabled' : '') + '>+ Level toevoegen</button></div>';
+  if(!h){
+    html += '<label class="field">Beginnen op level<select data-draft="start">' + d.ladder.map(function(_, i){
+      return '<option value="' + (i+1) + '"' + (String(d.start) === String(i+1) ? ' selected' : '') + '>LV ' + (i+1) + '</option>'; }).join('') + '</select></label>';
+  } else {
+    html += '<div class="sub" style="margin:0">Wijzigingen gelden vanaf deze week. Eerdere weken en je record blijven zoals ze waren.</div>';
+  }
+  if(d.error) html += '<div class="err" role="alert">' + esc(d.error) + '</div>';
+  html += '<div class="btns"><button class="btn primary" data-act="edit-save">' + (h ? 'Opslaan' : 'Gewoonte toevoegen') + '</button>' +
+    '<button class="btn" data-act="edit-cancel">Annuleren</button>' +
+    (h ? '<button class="btn danger" data-act="habit-delete" data-hid="' + esc(h.id) + '">Verwijderen</button>' : '') + '</div></div>';
+  return html;
+}
+function renderHabits(){
+  var cur = mondayOf(todayKey()), ed = ui.edit;
+  var html = '<div class="card rules"><h2>Zo werkt het</h2><ul>' +
+    '<li><b>Dagelijkse gewoontes</b> haal je als je je doel op minstens 6 van de 7 dagen haalt.</li>' +
+    '<li><b>Weekgewoontes</b> (ja/nee) haal je als je het aantal keer van je level haalt.</li>' +
+    '<li>Haal je een gewoonte <b>2 weken op rij</b> op hetzelfde level, dan gaat hij de week erna automatisch een level omhoog.</li>' +
+    '<li><b>Punten:</b> elke gehaalde dag 10 punten, plus 5 per level boven LV 1. Week gehaald: 25 bonus, plus 5 per level. Dagreflectie ingevuld: +5.</li>' +
+    '<li>Je <b>record</b> is je hoogste weekscore. Een hoger level levert meer punten op, dus het record breken blijft een uitdaging.</li>' +
+    '<li>Gewoontes toevoegen, aanpassen of stoppen geldt <b>vanaf deze week</b>. Eerdere weken en je record blijven kloppen.</li>' +
+    '</ul></div>';
+  if(ed && ed.mode === 'add') html += '<div class="card hcard"><h2>Nieuwe gewoonte</h2>' + renderEditor(ed) + '</div>';
+  else html += '<div class="btns"><button class="btn primary" data-act="add-open">+ Gewoonte toevoegen</button></div>';
+  html += state.habits.filter(function(h){ return !h.archived; }).map(function(h){
+    var lv = levelAt(h, cur), lad = ladderAt(h, cur), on = activeIn(h, cur), editing = ed && ed.mode === 'edit' && ed.id === h.id;
+    return '<div class="card hcard' + (on ? '' : ' off') + '"><div class="head"><div><h2>' + esc(h.name) + '</h2><div class="sub">' +
+      (h.kind === 'daily' ? 'Dagelijks · 6 van 7 dagen halen' : 'Per week · aantal keer halen') + '</div></div>' +
+      '<label class="switch"><input type="checkbox" data-act="enable" data-hid="' + esc(h.id) + '"' + (on ? ' checked' : '') + '> Actief</label></div>' +
+      (editing ? renderEditor(ed) :
+      '<div class="ladder">' + lad.map(function(_, i){
+        return '<span class="' + (i === lv ? 'cur' : i < lv ? 'done' : '') + '">LV ' + (i+1) + ' · ' + esc(fmtTarget(h, i, cur)) + '</span>';
+      }).join('') + '</div>' +
+      '<div class="btns"><button class="btn" data-act="lv" data-hid="' + esc(h.id) + '" data-v="-1"' + (lv <= 0 ? ' disabled' : '') + '>Level omlaag</button>' +
+      '<button class="btn" data-act="lv" data-hid="' + esc(h.id) + '" data-v="1"' + (lv >= lad.length-1 ? ' disabled' : '') + '>Level omhoog</button>' +
+      '<button class="btn" data-act="edit-open" data-hid="' + esc(h.id) + '">Bewerken</button>' +
+      '<span class="sub">Level geldt vanaf deze week.</span></div>') + '</div>';
+  }).join('');
+  var arch = state.habits.filter(function(h){ return h.archived; });
+  if(arch.length){
+    html += '<details class="card hcard"><summary><b>Gestopte gewoontes (' + arch.length + ')</b></summary>' +
+      '<div class="sub">Eerdere weken blijven meetellen in je scores en record.</div>' +
+      arch.map(function(h){
+        return '<div class="head"><span>' + esc(h.name) + '</span><button class="btn" data-act="habit-restore" data-hid="' + esc(h.id) + '">Herstellen</button></div>';
+      }).join('') + '</details>';
+  }
+  html += '<div class="card hcard"><div class="head"><div><h2>Back-up</h2><div class="sub" id="backup-last">' + esc(lastBackupText()) + '</div></div></div>' +
+    '<div class="sub">Je gegevens staan alleen op dit toestel. Download regelmatig een back-up (een JSON-bestand), dan kun je alles terugzetten na een nieuwe telefoon of als je browserdata wordt gewist.</div>' +
+    '<div class="btns"><button class="btn primary" data-act="export">Back-up downloaden</button>' +
+    '<button class="btn" data-act="import">Back-up terugzetten…</button></div>' +
+    '<input type="file" id="imp-file" accept=".json,application/json" hidden></div>';
+  return html;
+}
+function saveDraft(){
+  var d = ui.edit, cur = mondayOf(todayKey()), r;
+  if(d.mode === 'add'){
+    r = addHabit({ name: d.name, kind: d.sel === 'week' ? 'weekly' : 'daily', type: d.sel === 'time' ? 'time' : d.sel === 'week' ? 'bool' : 'number',
+      dir: d.dir, unit: d.unit, step: d.step, ladder: d.ladder, start: Number(d.start) - 1 }, cur);
+  } else {
+    r = updateHabit(d.id, { name: d.name, unit: d.unit, step: d.step, ladder: d.ladder }, cur);
+  }
+  if(!r.ok){ d.error = r.error; render(); return; }
+  ui.edit = null;
+  markDirty(); evaluateLevels(); render();
+  toast(d.mode === 'add' ? 'Gewoonte toegevoegd' : 'Opgeslagen');
+}
+
+/* ---------- events ---------- */
+root.addEventListener('click', function(ev){
+  var b = ev.target.closest('[data-act]'); if(!b || b.disabled) return;
+  var act = b.getAttribute('data-act'), v = b.getAttribute('data-v'), hid = b.getAttribute('data-hid');
+  if(act === 'tab'){ ui.tab = v; render(); return; }
+  if(act === 'add-open'){ ui.edit = newDraft(); render(); return; }
+  if(act === 'edit-open'){ ui.edit = draftFromHabit(habitById(hid)); render(); return; }
+  if(act === 'edit-cancel'){ ui.edit = null; render(); return; }
+  if(act === 'edit-save'){ if(ui.edit) saveDraft(); return; }
+  if(act === 'lvl-add'){ if(ui.edit && ui.edit.ladder.length < 12){ ui.edit.ladder.push(''); render(); } return; }
+  if(act === 'lvl-del'){
+    if(ui.edit && ui.edit.ladder.length > 1){
+      ui.edit.ladder.splice(Number(b.getAttribute('data-i')), 1);
+      if(Number(ui.edit.start) > ui.edit.ladder.length) ui.edit.start = String(ui.edit.ladder.length);
+      render();
+    }
+    return;
+  }
+  if(act === 'habit-delete'){
+    var dh = habitById(hid);
+    if(dh && window.confirm('"' + dh.name + '" stoppen vanaf deze week?\n\nEerdere weken en je record blijven kloppen. Je kunt de gewoonte later herstellen onder "Gestopte gewoontes".')){
+      archiveHabit(hid, mondayOf(todayKey())); ui.edit = null; markDirty(); render(); toast('Gewoonte gestopt');
+    }
+    return;
+  }
+  if(act === 'habit-restore'){ restoreHabit(hid, mondayOf(todayKey())); markDirty(); evaluateLevels(); render(); toast('Gewoonte hersteld'); return; }
+  if(act === 'export'){ exportData(); return; }
+  if(act === 'import'){ var fi = document.getElementById('imp-file'); if(fi) fi.click(); return; }
+  if(act === 'day'){ var n = addDays(ui.day, Number(v)); if(n <= todayKey()){ ui.day = n; render(); } return; }
+  if(act === 'today'){ ui.day = todayKey(); render(); return; }
+  if(act === 'week'){ var w = addDays(ui.week, 7*Number(v)); if(w <= mondayOf(todayKey())){ ui.week = w; render(); } return; }
+  if(act === 'bool'){
+    var e = ensureEntry(ui.day), want = v === '1';
+    if(e.values[hid] === want) delete e.values[hid]; else e.values[hid] = want;
+    var group = b.parentNode.querySelectorAll('button');
+    group.forEach(function(x){ x.setAttribute('aria-pressed', String(e.values[hid] === (x.getAttribute('data-v') === '1'))); });
+    markDirty(); refreshDayStatus(); return;
+  }
+  if(act === 'energy'){
+    var en = ensureEntry(ui.day), num = Number(v);
+    en.energy = en.energy === num ? null : num;
+    b.parentNode.querySelectorAll('button').forEach(function(x){ x.setAttribute('aria-pressed', String(Number(x.getAttribute('data-v')) === en.energy)); });
+    markDirty(); return;
+  }
+  if(act === 'lv'){
+    var h = habitById(hid), cur = mondayOf(todayKey()), lv = levelAt(h, cur) + Number(v);
+    if(lv < 0 || lv > h.ladder.length-1) return;
+    setLevel(h, cur, lv, 'manual'); markDirty(); evaluateLevels(); render(); return;
+  }
+});
+root.addEventListener('change', function(ev){
+  var t = ev.target;
+  if(t.id === 'imp-file'){ var f = t.files && t.files[0]; t.value = ''; if(f) importFile(f); return; }
+  if(t.matches('select[data-draft]') && ui.edit){
+    var f2 = t.getAttribute('data-draft');
+    ui.edit[f2] = t.value;
+    if(f2 === 'sel'){ ui.edit.ladder = ['', '']; ui.edit.start = '1'; ui.edit.error = ''; }
+    render(); return;
+  }
+  if(t.matches('[data-act="enable"]')){ var h = habitById(t.getAttribute('data-hid')); setActive(h, mondayOf(todayKey()), t.checked); markDirty(); render(); }
+});
+root.addEventListener('input', function(ev){
+  var t = ev.target;
+  if(t.matches('input[data-draft]') && ui.edit){
+    var f = t.getAttribute('data-draft');
+    if(f === 'ladder') ui.edit.ladder[Number(t.getAttribute('data-i'))] = t.value; else ui.edit[f] = t.value;
+    return;
+  }
+  if(t.matches('textarea[data-field]')){ var e = ensureEntry(ui.day); e[t.getAttribute('data-field')] = t.value; markDirty(); refreshDayStatus(); return; }
+  if(t.matches('input[data-hid]') && (t.type === 'number' || t.type === 'time')){
+    var en = ensureEntry(ui.day), hid = t.getAttribute('data-hid');
+    if(t.type === 'time'){ if(t.value) en.values[hid] = t.value; else delete en.values[hid]; }
+    else { var n = t.valueAsNumber; if(isNaN(n)) delete en.values[hid]; else en.values[hid] = n; }
+    markDirty(); refreshDayStatus();
+  }
+});
+
+/* ---------- start ---------- */
+ui.day = todayKey(); ui.week = mondayOf(ui.day);
+try{
+  var stored = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+  if(stored && stored.habits && stored.entries && stored.savedAt > (state.savedAt || 0)) state = stored;
+}catch(e){}
+evaluateLevels();
+if(state.created) persist();
+render();
+if(typeof navigator !== 'undefined'){
+  // vraag de browser om de opslag niet automatisch op te ruimen
+  if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function(){});
+  // service worker (alleen via http/https, niet vanaf file://)
+  if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+})();
+</script>
+</body>
+</html>
