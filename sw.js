@@ -1,7 +1,7 @@
 /* Service worker: maakt de app offline beschikbaar.
    Verhoog CACHE_VERSION bij elke wijziging aan de app-bestanden, dan laadt de telefoon de nieuwe versie. */
 'use strict';
-var CACHE_VERSION = 'habits-v3';
+var CACHE_VERSION = 'habits-v4';
 var SHELL = [
   './',
   'index.html',

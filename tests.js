@@ -42,7 +42,7 @@ function load(today) {
     ' ensureEntry:ensureEntry, habitById:habitById, buildBackup:buildBackup, validateBackup:validateBackup,' +
     ' applyState:applyState, activeIn:activeIn, activeAt:activeAt, ladderAt:ladderAt, setActive:setActive,' +
     ' addHabit:addHabit, updateHabit:updateHabit, archiveHabit:archiveHabit, restoreHabit:restoreHabit,' +
-    ' rawLevel:rawLevel, checkLadder:checkLadder };\n' + src.slice(end);
+    ' rawLevel:rawLevel, checkLadder:checkLadder, levelHint:levelHint, renderOverview:renderOverview, yesterdayCard:yesterdayCard };\n' + src.slice(end);
   const doc = {
     getElementById(id) {
       if (id === 'state') return { textContent: stateJson };
@@ -720,3 +720,73 @@ bkFails('activity leeg', (w, l) => { l.activity = []; }, /actief-geschiedenis/);
 bkFails('activity met tekst', (w, l) => { l.activity = [['2026-10-26', 'aan']]; }, /actief-geschiedenis/);
 bkFails('ladderHistory met ongeldig level', (w) => { w.ladderHistory = [['0000-00-00', [1.5, 'x']]]; }, /eerdere levels/);
 bkFails('ladderHistory met ongeldige datum', (w) => { w.ladderHistory = [['gisteren', [1.5]]]; }, /levelgeschiedenis van doelen/);
+
+/* ================= Overzicht op de Dag-tab: level-up-hint en kaarten ================= */
+
+test('level-up-hint, huidige week: eerst 2 weken op rij, daarna "haal deze week"', () => {
+  const t = fresh();
+  const h = t.habitById('water');
+  assert.equal(t.levelHint(h, CUR).lvl, '2 weken op rij → LV 2');
+  t.fill(W2, 'water', PASS_WATER);                          // vorige week gehaald op hetzelfde level
+  const hint = t.levelHint(h, CUR);
+  assert.equal(hint.lvl, 'Haal deze week → LV 2');
+  assert.equal(hint.cls, 'next');
+});
+
+test('level-up-hint, afgelopen weken: gehaald (1 van 2), level up of niet gehaald', () => {
+  const t = fresh();
+  const h = t.habitById('water');
+  t.fill(W2, 'water', PASS_WATER);
+  assert.equal(t.levelHint(h, W2).lvl, 'Gehaald (1 van 2)');
+  t.fill(W1, 'water', PASS_WATER);
+  assert.equal(t.levelHint(h, W2).lvl, 'Gehaald → level up');
+  const t2 = fresh();
+  assert.equal(t2.levelHint(t2.habitById('water'), W2).lvl, 'Niet gehaald');
+});
+
+test('level-up-hint: op het hoogste level staat "Max level bereikt"', () => {
+  const t = fresh(3);                                       // laatste level van water
+  assert.equal(t.levelHint(t.habitById('water'), CUR).lvl, 'Max level bereikt');
+});
+
+test('level-up-hint: een gestopte vorige week telt niet als "op rij"', () => {
+  const t = fresh();
+  const h = t.habitById('water');
+  t.fill(W2, 'water', PASS_WATER);
+  t.setActive(h, W2, false);
+  t.setActive(h, CUR, true);
+  assert.equal(t.levelHint(h, CUR).lvl, '2 weken op rij → LV 2');
+});
+
+test('overzicht: toont score, record en je week per gewoonte', () => {
+  const t = fresh();
+  t.fill(W1, 'water', [2, 2, 2, 2, 2, 2, 2]);               // record 95
+  t.fill(CUR, 'water', [2, 2, 2, 2]);                       // 4 dagen = 40
+  const html = t.renderOverview(TODAY);
+  assert.match(html, /Deze week/);
+  assert.match(html, /40 punten/);
+  assert.match(html, /Nog 55 punten tot je record \(95\)/);
+  assert.match(html, /width:42%/);                          // 40 van 95
+  assert.match(html, /Water gedronken/);
+  assert.match(html, />4\/6</);
+});
+
+test('overzicht: balk loopt niet over 100% en wordt goud boven je record', () => {
+  const t = fresh();
+  t.fill(W1, 'water', [2, 2, 2, 2, 2, 2, null]);            // 85
+  t.fill(CUR, 'water', [2, 2, 2, 2, 2, 2, 2]);              // 95
+  const html = t.renderOverview(TODAY);
+  assert.match(html, /meter over/);
+  assert.match(html, /width:100%/);
+  assert.match(html, /Je zit boven je record/);
+});
+
+test('gisteren-kaart: toont je voornemen, maakt tekst veilig en verdwijnt zonder tekst', () => {
+  const t = fresh();
+  assert.equal(t.yesterdayCard(TODAY), '');
+  t.ensureEntry('2026-10-27').better = 'Eerder naar bed <b>echt</b>';
+  const html = t.yesterdayCard(TODAY);
+  assert.match(html, /Dit nam je je voor/);
+  assert.match(html, /Eerder naar bed &lt;b&gt;echt&lt;\/b&gt;/);
+  assert.doesNotMatch(html, /<b>echt/);
+});
